@@ -1,10 +1,35 @@
 extern crate xml;
 
 pub mod graph {
-#[derive(Debug)]
+    use std::*;
+
+    #[derive(Debug)]
+    #[derive(PartialEq)]
     pub enum GraphEvent {
         Node { id: String },
         Edge { id: String, source: String, target: String }
+    }
+
+    impl GraphEvent {
+        fn new_node(id: Option<String>) -> result::Result<GraphEvent, String> {
+            match id {
+                Some(id) => {  Ok(GraphEvent::Node{ id }) }
+                None => {
+                    Err(String::from("node: id missing"))
+                }
+            }
+        }
+
+        fn new_edge(id: Option<String>, source: Option<String>, target: Option<String>) -> result::Result<GraphEvent, String> {
+            match ( id, source, target) {
+                (Some(id), Some(source), Some(target)) => { Ok(GraphEvent::Edge{id, source, target}) }
+                (id, source, target ) => {
+                    Err(
+                        format!("edge: missing field(s) [id: {:?}, source: {:?}, target: {:?}]", id, source, target).to_string()
+                    )
+                }
+            }
+        }
     }
 
     pub mod reader {
@@ -14,41 +39,56 @@ pub mod graph {
         use std::io::*;
         use graph::*;
 
-        pub fn graphml_reader<R>(read_stream: BufReader<R>) -> io::Result<Vec<GraphEvent>>
+        type Result = result::Result<Vec<GraphEvent>, String>;
+
+        pub fn graphml_reader<R>(read_stream: BufReader<R>) -> Result
             where R: Read
         {
             let parser = EventReader::new(read_stream);
             let mut events: Vec<GraphEvent> = Vec::new();
+            let mut result: Result = Ok(Vec::<GraphEvent>::new());
             for e in parser {
                 match e {
                     Ok(XmlEvent::StartElement { name, attributes: attrs, .. }) => {
-                        let id_opt = get_value_from_attrs("id", &attrs);
-                        if id_opt.is_none() {
-                            continue;
-                        }
-                        let id = id_opt.unwrap();
                         match name.local_name.as_ref() {
                             "node" => {
-                                events.push(GraphEvent::Node{ id});
+                                let node = GraphEvent::new_node(get_value_from_attrs("id", &attrs));
+                                match node {
+                                    Ok(node) => { events.push(node); }
+                                    Err(err) => {
+                                        result = Err(err);
+                                        break;
+                                    }
+                                }
                             }
                             "edge" => {
-                                let source = get_value_from_attrs("source", &attrs).unwrap();
-                                let target = get_value_from_attrs("target", &attrs).unwrap();
-                                events.push(GraphEvent::Edge {id, source, target});
+                                let edge = GraphEvent::new_edge(
+                                    get_value_from_attrs("id", &attrs),
+                                    get_value_from_attrs("source", &attrs),
+                                    get_value_from_attrs("target", &attrs)
+                                    );
+                                match edge {
+                                    Ok(edge) => { events.push(edge); }
+                                    Err(err) => {
+                                        result = Err(err);
+                                        break;
+                                    }
+                                }
                             }
                             _ => {
                                 continue;
                             }
                         }
                     }
-                    Ok(_) => {}
+                    Ok(_) => { continue }
                     Err(e) => {
-                        println!("Error: {}", e);
-                        break;
+                        result = Err(e.to_string());
+                        //println!("Error: {}", e);
+                        //break
                     }
                 }
             }
-            Ok(events)
+            result.map(|_| events)
         }
 
         fn get_value_from_attrs(val: &str, attrs: &Vec<OwnedAttribute>) -> Option<String> {
@@ -60,5 +100,92 @@ pub mod graph {
             }
             ret
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use graph::*;
+    use graph::GraphEvent::*;
+    use std::io::*;
+
+    #[test]
+    fn graphml_test() {
+        let content = String::from(r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+            <graphml>
+            <graph id="G" edgedefault="undirected">
+            <node id="A"/>
+            <node id="D"/>
+            <edge id="da" source="D" target="A"/>
+            </graph>
+            </graphml>"#);
+        let exp = vec!(
+                Node { id: "A".to_string()},
+                Node { id: "D".to_string()},
+                Edge { id: "da".to_string(), source: "D".to_string(), target: "A".to_string() }
+            );
+        assert_result(content, exp);
+    }
+
+    #[test]
+    fn graphml_no_node_id_test() {
+        let content = String::from(r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+            <graphml>
+            <graph id="G" edgedefault="undirected">
+            <node/>
+            <node id="D"/>
+            <edge id="da" source="D" target="A"/>
+            </graph>
+            </graphml>"#);
+        assert_error(content, "node: id missing".to_string());
+    }
+
+    #[test]
+    fn graphml_no_egde_source_test() {
+        let content = String::from(r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+            <graphml>
+            <graph id="G" edgedefault="undirected">
+            <edge id="da" target="A"/>
+            </graph>
+            </graphml>"#);
+        assert_error(content, "edge: missing field(s) [id: Some(\"da\"), source: None, target: Some(\"A\")]".to_string());
+    }
+
+    #[test]
+    fn empty_graphml_test() {
+        let content = String::from(r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+            <graphml>
+            <graph id="G" edgedefault="undirected">
+            </graph>
+            </graphml>"#);
+        let exp = vec!();
+        assert_result(content, exp);
+    }
+
+    #[test]
+    fn no_graphml_test() {
+        let content = String::from(r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+        <foo/>"#);
+        let exp = vec!();
+        assert_result(content, exp);
+    }
+
+    fn assert_result(content: String, exp: Vec<GraphEvent>) {
+        let buf_reader = BufReader::new(content.as_bytes());
+        let events = reader::graphml_reader(buf_reader).unwrap();
+
+        assert_eq!(&events, &exp);
+    }
+
+    fn assert_error(content: String, exp: String) {
+        let buf_reader = BufReader::new(content.as_bytes());
+        let err = reader::graphml_reader(buf_reader).unwrap_err();
+
+        assert_eq!(err,exp);
     }
 }
