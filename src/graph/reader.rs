@@ -30,7 +30,7 @@ pub fn graphml_reader<R>(read_stream: BufReader<R>) -> Result
                         let edge = GraphEvent::new_edge(
                             get_value_from_attrs("id", &attrs),
                             get_value_from_attrs("source", &attrs),
-                            get_value_from_attrs("target", &attrs)
+                            get_value_from_attrs("target", &attrs),
                         );
                         match edge {
                             Ok(edge) => { events.push(edge); }
@@ -69,13 +69,13 @@ fn get_value_from_attrs(val: &str, attrs: &Vec<OwnedAttribute>) -> Option<String
 
 #[cfg(test)]
 mod tests {
-use graph::*;
-use graph::GraphEvent::*;
-use std::io::*;
+    use graph::*;
+    use graph::GraphEvent::*;
+    use std::io::*;
 
-#[test]
-fn graphml_test() {
-let content = String::from(r#"
+    #[test]
+    fn graphml_test() {
+        let content = String::from(r#"
     <?xml version="1.0" encoding="UTF-8"?>
         <graphml>
         <graph id="G" edgedefault="undirected">
@@ -84,17 +84,17 @@ let content = String::from(r#"
         <edge id="da" source="D" target="A"/>
         </graph>
         </graphml>"#);
-let exp = vec!(
-Node { id: "A".to_string() },
-Node { id: "D".to_string() },
-Edge { id: "da".to_string(), source: "D".to_string(), target: "A".to_string() }
-);
-assert_result(content, exp);
-}
+        let exp = vec!(
+            Node { id: "A".to_string() },
+            Node { id: "D".to_string() },
+            Edge { id: "da".to_string(), source: "D".to_string(), target: "A".to_string() }
+        );
+        assert_result(content, exp);
+    }
 
-#[test]
-fn graphml_no_node_id_test() {
-let content = String::from(r#"
+    #[test]
+    fn graphml_no_node_id_test() {
+        let content = String::from(r#"
     <?xml version="1.0" encoding="UTF-8"?>
         <graphml>
         <graph id="G" edgedefault="undirected">
@@ -103,53 +103,53 @@ let content = String::from(r#"
         <edge id="da" source="D" target="A"/>
         </graph>
         </graphml>"#);
-assert_error(content, "node: id missing".to_string());
-}
+        assert_error(content, "node: id missing".to_string());
+    }
 
-#[test]
-fn graphml_no_egde_source_test() {
-let content = String::from(r#"
+    #[test]
+    fn graphml_no_egde_source_test() {
+        let content = String::from(r#"
     <?xml version="1.0" encoding="UTF-8"?>
         <graphml>
         <graph id="G" edgedefault="undirected">
         <edge id="da" target="A"/>
         </graph>
         </graphml>"#);
-assert_error(content, "edge: missing field(s) [id: Some(\"da\"), source: None, target: Some(\"A\")]".to_string());
-}
+        assert_error(content, "edge: missing field(s) [id: Some(\"da\"), source: None, target: Some(\"A\")]".to_string());
+    }
 
-#[test]
-fn empty_graphml_test() {
-let content = String::from(r#"
+    #[test]
+    fn empty_graphml_test() {
+        let content = String::from(r#"
     <?xml version="1.0" encoding="UTF-8"?>
         <graphml>
         <graph id="G" edgedefault="undirected">
         </graph>
-        </graphml>"#);
-let exp = vec!();
-assert_result(content, exp);
-}
+            </graphml>"#);
+        let exp = vec!();
+        assert_result(content, exp);
+    }
 
-#[test]
-fn no_graphml_test() {
-let content = String::from(r#"
-    <?xml version="1.0" encoding="UTF-8"?>
-    <foo/>"#);
-let exp = vec!();
-assert_result(content, exp);
-}
+    #[test]
+    fn no_graphml_test() {
+        let content = String::from(r#"
+        <?xml version="1.0" encoding="UTF-8"?>
+        <foo/>"#);
+        let exp = vec!();
+        assert_result(content, exp);
+    }
 
-fn assert_result(content: String, exp: Vec<GraphEvent>) {
-let buf_reader = BufReader::new(content.as_bytes());
-let events = reader::graphml_reader(buf_reader).unwrap();
+    fn assert_result(content: String, exp: Vec<GraphEvent>) {
+        let buf_reader = BufReader::new(content.as_bytes());
+        let events = reader::graphml_reader(buf_reader).unwrap();
 
-assert_eq!(&events, &exp);
-}
+        assert_eq!(&events, &exp);
+    }
 
-fn assert_error(content: String, exp: String) {
-let buf_reader = BufReader::new(content.as_bytes());
-let err = reader::graphml_reader(buf_reader).unwrap_err();
+    fn assert_error(content: String, exp: String) {
+        let buf_reader = BufReader::new(content.as_bytes());
+        let err = reader::graphml_reader(buf_reader).unwrap_err();
 
-assert_eq!(err, exp);
-}
+        assert_eq!(err, exp);
+    }
 }
