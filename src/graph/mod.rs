@@ -1,8 +1,37 @@
 use std::*;
 
 pub mod reader;
+pub mod writer;
 
-type Result = result::Result<GraphEvent, String>;
+type GraphEventResult = result::Result<GraphEvent, FieldMissingError>;
+
+#[derive(Debug)]
+#[derive(PartialEq)]
+pub enum FieldMissingError {
+    NodeError(Option<String>),
+    EdgeError(Option<String>, Option<String>, Option<String>)
+}
+
+impl fmt::Display for FieldMissingError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            FieldMissingError::NodeError(_) => { write!(f, "node: missing id field") }
+            FieldMissingError::EdgeError(ref id, ref source, ref target) => {
+                write!(f, "edge: missing field(s) [id: {:?}, source: {:?}, target: {:?}]", id, source, target)
+            }
+        }
+    }
+}
+
+impl error::Error for FieldMissingError {
+    fn description(&self) -> &str {
+        "Missing field while parsing"
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
 
 #[derive(Debug)]
 #[derive(PartialEq)]
@@ -12,23 +41,19 @@ pub enum GraphEvent {
 }
 
 impl GraphEvent {
-    fn new_node(id: Option<String>) -> Result {
+    fn new_node(id: Option<String>) -> GraphEventResult {
         match id {
-            Some(id) => {  Ok(GraphEvent::Node{ id }) }
+            Some(id) => { Ok(GraphEvent::Node{id}) }
             None => {
-                Err(String::from("node: id missing"))
+                Err(FieldMissingError::NodeError(None))
             }
         }
     }
 
-    fn new_edge(id: Option<String>, source: Option<String>, target: Option<String>) -> result::Result<GraphEvent, String> {
+    fn new_edge(id: Option<String>, source: Option<String>, target: Option<String>) -> GraphEventResult {
         match ( id, source, target) {
             (Some(id), Some(source), Some(target)) => { Ok(GraphEvent::Edge{id, source, target}) }
-            (id, source, target ) => {
-                Err(
-                    format!("edge: missing field(s) [id: {:?}, source: {:?}, target: {:?}]", id, source, target).to_string()
-                )
-            }
+            (id, source, target ) => { Err(FieldMissingError::EdgeError(id, source, target)) }
         }
     }
 }
@@ -47,7 +72,7 @@ mod tests {
     #[test]
     fn node_err_test() {
         let node = GraphEvent::new_node( None);
-        assert_eq!(node.unwrap_err(), "node: id missing".to_string());
+        assert_eq!(node.unwrap_err(), FieldMissingError::NodeError(None));
     }
 
     #[test]
@@ -59,12 +84,12 @@ mod tests {
     #[test]
     fn edge_err_test() {
         let edge = GraphEvent::new_edge( None, None, None);
-        assert_eq!(edge.unwrap_err(), "edge: missing field(s) [id: None, source: None, target: None]");
+        assert_eq!(edge.unwrap_err(),FieldMissingError::EdgeError(None, None , None));
     }
 
     #[test]
     fn edge_err_no_id_test() {
         let edge = GraphEvent::new_edge( None, Some("B".to_string()), Some("C".to_string()));
-        assert_eq!(edge.unwrap_err(), "edge: missing field(s) [id: None, source: Some(\"B\"), target: Some(\"C\")]");
+        assert_eq!(edge.unwrap_err(), FieldMissingError::EdgeError(None,Some("B".to_string()),Some("C".to_string())));
     }
 }

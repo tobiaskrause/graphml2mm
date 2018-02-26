@@ -4,14 +4,49 @@ use std::*;
 use std::io::*;
 use graph::*;
 
-type Result = result::Result<Vec<GraphEvent>, String>;
+type ReaderResult = result::Result<Vec<GraphEvent>, ReaderError>;
 
-pub fn graphml_reader<R>(read_stream: BufReader<R>) -> Result
+#[derive(Debug)]
+#[derive(PartialEq)]
+pub enum ReaderError{
+    XMLError(String),
+    GraphEventError(FieldMissingError)
+}
+
+impl fmt::Display for ReaderError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ReaderError")
+    }
+}
+
+impl From<FieldMissingError> for ReaderError {
+    fn from(err: FieldMissingError) -> ReaderError {
+        ReaderError::GraphEventError(err)
+    }
+}
+
+impl error::Error for ReaderError {
+    fn description(&self) -> &str {
+        match *self {
+            ReaderError::XMLError(ref desc) => { desc }
+            ReaderError::GraphEventError(_) => { "encountered a GraphEventError" }
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            ReaderError::GraphEventError(ref err) => { Some(err) }
+            _ => None
+        }
+    }
+}
+
+pub fn graphml_reader<R>(read_stream: BufReader<R>) -> ReaderResult
     where R: Read
 {
     let parser = EventReader::new(read_stream);
     let mut events: Vec<GraphEvent> = Vec::new();
-    let mut result: Result = Ok(Vec::<GraphEvent>::new());
+    let mut result: ReaderResult = Ok(Vec::<GraphEvent>::new());
     for e in parser {
         match e {
             Ok(XmlEvent::StartElement { name, attributes: attrs, .. }) => {
@@ -21,7 +56,7 @@ pub fn graphml_reader<R>(read_stream: BufReader<R>) -> Result
                         match node {
                             Ok(node) => { events.push(node); }
                             Err(err) => {
-                                result = Err(err);
+                                result = Err(ReaderError::from(err));
                                 break;
                             }
                         }
@@ -35,7 +70,7 @@ pub fn graphml_reader<R>(read_stream: BufReader<R>) -> Result
                         match edge {
                             Ok(edge) => { events.push(edge); }
                             Err(err) => {
-                                result = Err(err);
+                                result = Err(ReaderError::from(err));
                                 break;
                             }
                         }
@@ -46,10 +81,8 @@ pub fn graphml_reader<R>(read_stream: BufReader<R>) -> Result
                 }
             }
             Ok(_) => { continue }
-            Err(e) => {
-                result = Err(e.to_string());
-                //println!("Error: {}", e);
-                //break
+            Err(err) => {
+                result = Err(ReaderError::XMLError(err.to_string()));
             }
         }
     }
@@ -66,11 +99,11 @@ fn get_value_from_attrs(val: &str, attrs: &Vec<OwnedAttribute>) -> Option<String
     ret
 }
 
-
 #[cfg(test)]
 mod tests {
     use graph::*;
     use graph::GraphEvent::*;
+    use graph::reader::ReaderError;
     use std::io::*;
 
     #[test]
@@ -103,7 +136,7 @@ mod tests {
         <edge id="da" source="D" target="A"/>
         </graph>
         </graphml>"#);
-        assert_error(content, "node: id missing".to_string());
+        assert_error(content, ReaderError::GraphEventError(FieldMissingError::NodeError(None)));
     }
 
     #[test]
@@ -115,7 +148,16 @@ mod tests {
         <edge id="da" target="A"/>
         </graph>
         </graphml>"#);
-        assert_error(content, "edge: missing field(s) [id: Some(\"da\"), source: None, target: Some(\"A\")]".to_string());
+        assert_error(content,
+                     ReaderError::GraphEventError(
+                         FieldMissingError::EdgeError(
+                             Some("da".to_string()),
+                             None,
+                             Some("A".to_string()
+                             )
+                         )
+                     )
+        );
     }
 
     #[test]
@@ -139,6 +181,13 @@ mod tests {
         assert_result(content, exp);
     }
 
+    #[test]
+    fn no_xml_error_test() {
+        let content = String::from(r#"
+        oo/>"#);
+        assert_error(content, ReaderError::XMLError("2:9 Unexpected characters outside the root element: o".to_string()));
+    }
+
     fn assert_result(content: String, exp: Vec<GraphEvent>) {
         let buf_reader = BufReader::new(content.as_bytes());
         let events = reader::graphml_reader(buf_reader).unwrap();
@@ -146,7 +195,7 @@ mod tests {
         assert_eq!(&events, &exp);
     }
 
-    fn assert_error(content: String, exp: String) {
+    fn assert_error(content: String, exp: ReaderError) {
         let buf_reader = BufReader::new(content.as_bytes());
         let err = reader::graphml_reader(buf_reader).unwrap_err();
 
