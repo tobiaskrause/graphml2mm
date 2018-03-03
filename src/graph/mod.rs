@@ -1,4 +1,5 @@
 use std::*;
+use std::collections::*;
 
 pub mod reader;
 pub mod writer;
@@ -37,7 +38,7 @@ impl error::Error for FieldMissingError {
 #[derive(PartialEq)]
 pub enum GraphEvent {
     Node { id: String },
-    Edge { id: String, source: String, target: String }
+    Edge { id: String, source: String, target: String, attrs: HashMap<String,String> }
 }
 
 impl GraphEvent {
@@ -50,10 +51,11 @@ impl GraphEvent {
         }
     }
 
-    fn new_edge(id: Option<String>, source: Option<String>, target: Option<String>) -> GraphEventResult {
-        match ( id, source, target) {
-            (Some(id), Some(source), Some(target)) => { Ok(GraphEvent::Edge{id, source, target}) }
-            (id, source, target ) => { Err(FieldMissingError::EdgeError(id, source, target)) }
+    fn new_edge(id: Option<String>, source: Option<String>, target: Option<String>, attrs: Option<HashMap<String,String>>) -> GraphEventResult {
+        match ( id, source, target, attrs) {
+            (Some(id), Some(source), Some(target), None) => { Ok(GraphEvent::Edge{id, source, target, attrs: HashMap::new()}) }
+            (Some(id), Some(source), Some(target), Some(attrs)) => { Ok(GraphEvent::Edge{id, source, target, attrs}) }
+            (id, source, target, _ ) => { Err(FieldMissingError::EdgeError(id, source, target)) }
         }
     }
 }
@@ -77,19 +79,19 @@ mod tests {
 
     #[test]
     fn edge_test() {
-        let edge = GraphEvent::new_edge( Some("A".to_string()), Some("B".to_string()), Some("C".to_string()));
-        assert_eq!(edge.unwrap(), Edge { id: "A".to_string(), source: "B".to_string(), target: "C".to_string()});
+        let edge = GraphEvent::new_edge( Some("A".to_string()), Some("B".to_string()), Some("C".to_string()), None);
+        assert_eq!(edge.unwrap(), Edge { id: "A".to_string(), source: "B".to_string(), target: "C".to_string(), attrs: HashMap::new()});
     }
 
     #[test]
     fn edge_err_test() {
-        let edge = GraphEvent::new_edge( None, None, None);
-        assert_eq!(edge.unwrap_err(),FieldMissingError::EdgeError(None, None , None));
+        let edge = GraphEvent::new_edge( None, None, None, None);
+        assert_eq!(edge.unwrap_err(),FieldMissingError::EdgeError(None, None , None, ));
     }
 
     #[test]
     fn edge_err_no_id_test() {
-        let edge = GraphEvent::new_edge( None, Some("B".to_string()), Some("C".to_string()));
+        let edge = GraphEvent::new_edge( None, Some("B".to_string()), Some("C".to_string()), None);
         assert_eq!(edge.unwrap_err(), FieldMissingError::EdgeError(None,Some("B".to_string()),Some("C".to_string())));
     }
 }

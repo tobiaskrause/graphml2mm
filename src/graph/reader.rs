@@ -66,6 +66,7 @@ pub fn graphml_reader<R>(read_stream: BufReader<R>) -> ReaderResult
                             get_value_from_attrs("id", &attrs),
                             get_value_from_attrs("source", &attrs),
                             get_value_from_attrs("target", &attrs),
+                            None
                         );
                         match edge {
                             Ok(edge) => { events.push(edge); }
@@ -120,7 +121,7 @@ mod tests {
         let exp = vec!(
             Node { id: "A".to_string() },
             Node { id: "D".to_string() },
-            Edge { id: "da".to_string(), source: "D".to_string(), target: "A".to_string() }
+            Edge { id: "da".to_string(), source: "D".to_string(), target: "A".to_string(), attrs: HashMap::new() }
         );
         assert_result(content, exp);
     }
