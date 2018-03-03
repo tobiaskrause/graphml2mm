@@ -121,7 +121,7 @@ mod tests {
         let exp = vec!(
             Node { id: "A".to_string() },
             Node { id: "D".to_string() },
-            Edge { id: "da".to_string(), source: "D".to_string(), target: "A".to_string(), attrs: HashMap::new() }
+            Edge { id: "da".to_string(), source: "D".to_string(), target: "A".to_string(), data: HashMap::new() }
         );
         assert_result(content, exp);
     }

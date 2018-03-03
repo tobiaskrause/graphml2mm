@@ -11,7 +11,7 @@ pub fn  mm_writer<W: Write + Seek>(writer: &mut W, events: &Vec<GraphEvent>) {
 
     for event in events {
         match event {
-            &GraphEvent::Edge { id: _, ref source, ref target, attrs: _ } => {
+            &GraphEvent::Edge { id: _, ref source, ref target, data: _ } => {
                 entries = entries + 1;
                 writeln(writer, format!("{} {} {}", source, target, "1.0" ).as_ref());
             }
@@ -57,13 +57,13 @@ mod tests {
     fn write_simple() {
         let mut writer =  Cursor::new(Vec::new());
         let events = vec!(
-            GraphEvent::Edge {id: String::from("1"), source: String::from("1"), target: String::from("2"), attrs: HashMap::new()},
-            GraphEvent::Edge {id: String::from("2"), source: String::from("2"), target: String::from("3"), attrs: HashMap::new()},
+            GraphEvent::Edge {id: String::from("1"), source: String::from("1"), target: String::from("2"), data: HashMap::new()},
+            GraphEvent::Edge {id: String::from("2"), source: String::from("2"), target: String::from("3"), data: HashMap::new()},
             GraphEvent::Node {id: String::from("1")},
             GraphEvent::Node {id: String::from("2")},
             GraphEvent::Node {id: String::from("3")}
         );
-        mm_writer(&mut writer, events);
+        mm_writer(&mut writer, &events);
         writer.seek(SeekFrom::Start(0)).unwrap();
         let mut s = Vec::new();
         writer.read_to_end(&mut s).unwrap();

@@ -38,7 +38,7 @@ impl error::Error for FieldMissingError {
 #[derive(PartialEq)]
 pub enum GraphEvent {
     Node { id: String },
-    Edge { id: String, source: String, target: String, attrs: HashMap<String,String> }
+    Edge { id: String, source: String, target: String, data: HashMap<String,String> }
 }
 
 impl GraphEvent {
@@ -53,8 +53,8 @@ impl GraphEvent {
 
     fn new_edge(id: Option<String>, source: Option<String>, target: Option<String>, attrs: Option<HashMap<String,String>>) -> GraphEventResult {
         match ( id, source, target, attrs) {
-            (Some(id), Some(source), Some(target), None) => { Ok(GraphEvent::Edge{id, source, target, attrs: HashMap::new()}) }
-            (Some(id), Some(source), Some(target), Some(attrs)) => { Ok(GraphEvent::Edge{id, source, target, attrs}) }
+            (Some(id), Some(source), Some(target), None) => { Ok(GraphEvent::Edge{id, source, target, data: HashMap::new()}) }
+            (Some(id), Some(source), Some(target), Some(attrs)) => { Ok(GraphEvent::Edge{id, source, target, data: attrs }) }
             (id, source, target, _ ) => { Err(FieldMissingError::EdgeError(id, source, target)) }
         }
     }
@@ -80,7 +80,7 @@ mod tests {
     #[test]
     fn edge_test() {
         let edge = GraphEvent::new_edge( Some("A".to_string()), Some("B".to_string()), Some("C".to_string()), None);
-        assert_eq!(edge.unwrap(), Edge { id: "A".to_string(), source: "B".to_string(), target: "C".to_string(), attrs: HashMap::new()});
+        assert_eq!(edge.unwrap(), Edge { id: "A".to_string(), source: "B".to_string(), target: "C".to_string(), data: HashMap::new()});
     }
 
     #[test]
