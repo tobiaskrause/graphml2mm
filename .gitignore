@@ -3,3 +3,4 @@ graphml2mm.iml
 /target/
 **/*.rs.bk
 /.idea/
+/sample_data/

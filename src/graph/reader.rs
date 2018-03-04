@@ -41,8 +41,7 @@ impl error::Error for ReaderError {
     }
 }
 
-pub fn graphml_reader<R>(read_stream: BufReader<R>) -> ReaderResult
-    where R: Read
+pub fn graphml_reader<R: Read>(read_stream: R ) -> ReaderResult
 {
     let parser = EventReader::new(read_stream);
     let mut events: Vec<GraphEvent> = Vec::new();

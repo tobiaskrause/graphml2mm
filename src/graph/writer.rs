@@ -2,9 +2,9 @@
 use graph::*;
 use std::io::*;
 
-pub fn  mm_writer<W: Write + Seek>(writer: &mut W, events: &Vec<GraphEvent>) {
-    writeln_file_header(writer);
-    let header_position = writer.seek(SeekFrom::Current(0)).unwrap();
+pub fn  mm_writer<W: Write + Seek>(writer: &mut W, events: &Vec<GraphEvent>) -> Result<()> {
+    writeln_file_header(writer)?;
+    let header_position = writer.seek(SeekFrom::Current(0))?;
     writeln_dummy_header(writer, 10);
     let mut entries: usize = 0;
     let mut nodes: usize = 0;
@@ -22,10 +22,12 @@ pub fn  mm_writer<W: Write + Seek>(writer: &mut W, events: &Vec<GraphEvent>) {
     }
     writer.seek(SeekFrom::Start(header_position)).unwrap();
     write_header(writer, nodes, nodes, entries);
+    Ok(())
 }
 
-fn writeln_file_header<W: Write + Seek>(writer: &mut W) {
-    writer.write(format!("{}\n", "%%MatrixMarket matrix coordinate real general").as_ref()).unwrap();
+fn writeln_file_header<W: Write + Seek>(writer: &mut W) -> Result<()> {
+    writer.write(format!("{}\n", "%%MatrixMarket matrix coordinate real general").as_ref())?;
+    Ok(())
 }
 
 
