@@ -6,7 +6,7 @@ Library to convert from [grapml](http://graphml.graphdrawing.org/) to [Matrix-ma
 
 ```
 USAGE:
-    graphml2mm.exe <IN> <OUT>
+    graphml2mm <IN> <OUT>
 
 FLAGS:
     -h, --help       Prints help information
